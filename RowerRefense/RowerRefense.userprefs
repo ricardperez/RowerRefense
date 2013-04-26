@@ -1,0 +1,19 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/scripts/EnemyScript.cs">
+    <Files>
+      <File FileName="Assets/scripts/MapScript.cs" Line="221" Column="32" />
+      <File FileName="Assets/scripts/PathScript.cs" Line="91" Column="56" />
+      <File FileName="Assets/scripts/EnemyScript.cs" Line="59" Column="51" />
+      <File FileName="Assets/scripts/SpawnEnemiesScript.cs" Line="67" Column="44" />
+      <File FileName="Assets/scripts/CreateDefensesScript.cs" Line="85" Column="24" />
+      <File FileName="Assets/scripts/DefenseScript.cs" Line="55" Column="31" />
+      <File FileName="Assets/scripts/HUDScript.cs" Line="31" Column="29" />
+      <File FileName="Assets/scripts/PlayerScript.cs" Line="63" Column="14" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
