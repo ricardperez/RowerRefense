@@ -1,6 +1,15 @@
 using UnityEngine;
 using System.Collections;
 
+public enum Direction
+{
+	kRight = 0,
+	kLeft,
+	kUp,
+	kDown,
+	kQuiet,
+}
+
 public struct Position
 {
 	public int row;
@@ -11,6 +20,89 @@ public struct Position
 		this.row = r;
 		this.column = c;
 	}
+	
+	override public string ToString ()
+	{
+		return ("(" + this.row + ", " + this.column + ")");
+	}
+	
+	public bool isEqualTo (Position pos)
+	{
+		return ((this.row == pos.row) && (this.column == pos.column));
+	}
+	
+	public Position move (Direction dir)
+	{
+		return this.move (dir, 1);
+	}
+	
+	public Position move (Direction dir, int steps)
+	{
+		int row = this.row;
+		int column = this.column;
+		switch (dir) {
+		case Direction.kRight:
+			column += steps;
+			break;
+		case Direction.kLeft:
+			column -= steps;
+			break;
+		case Direction.kUp:
+			row += steps;
+			break;
+		case Direction.kDown:
+			row -= steps;
+			break;
+		default:
+			break;
+		}
+		return new Position (row, column);
+	}
+	
+	public Direction directionTo (Position pos)
+	{
+		if (pos.column > this.column) {
+			return Direction.kRight;
+		} else if (pos.column < this.column) {
+			return Direction.kLeft;
+		} else if (pos.row > this.row) {
+			return Direction.kUp;
+		} else if (pos.row < this.row) {
+			return Direction.kDown;
+		} else {
+			return Direction.kQuiet;
+		}
+	}
+	
+	public static Direction reversedDirection (Direction dir)
+	{
+		Direction reversed = Direction.kQuiet;
+		switch (dir) {
+		case Direction.kLeft:
+			reversed = Direction.kRight;
+			break;
+		case Direction.kRight:
+			reversed = Direction.kLeft;
+			break;
+		case Direction.kUp:
+			reversed = Direction.kDown;
+			break;
+		case Direction.kDown:
+			reversed = Direction.kUp;
+			break;
+		}
+		return reversed;
+	}
+	
+	public bool isInRange (int maxRow, int maxCol)
+	{
+		return this.isInRange (0, 0, maxRow, maxCol);
+	}
+	
+	public bool isInRange (int minRow, int minCol, int maxRow, int maxCol)
+	{
+		return ((this.row >= minRow) && (this.column >= minCol) && (this.row <= maxRow) && (this.column <= maxCol));
+	}
 }
 
 public struct Size
@@ -18,16 +110,28 @@ public struct Size
 	public int width;
 	public int height;
 	
-	public Size(int w, int h)
+	public Size (int w, int h)
 	{
 		this.width = w;
 		this.height = h;
+	}
+	
+	override public string ToString ()
+	{
+		return ("(" + this.width + ", " + this.height + ")");
+	}
+	
+	public bool isEqualTo (Size s)
+	{
+		return ((this.width == s.width) && (this.height == s.height));
 	}
 }
 
 public class MapScript : MonoBehaviour
 {
 	public GameObject map;
+	public Camera camera2d;
+	public Camera camera3d;
 	public GameObject selection;
 	public GameObject door;
 	public GameObject home;
@@ -41,6 +145,7 @@ public class MapScript : MonoBehaviour
 	private Position _doorPosition;
 	private Position _homePosition;
 	private static MapScript singleton;
+	private bool _isRendering2d;
 
 	public static MapScript sharedInstance ()
 	{
@@ -81,7 +186,7 @@ public class MapScript : MonoBehaviour
 		homeScale.x = this._tileSize.x;
 		homeScale.z = this._tileSize.y;
 		this.home.transform.localScale = homeScale;
-		this._homePosition = new Position(this.mapWidth/2, this.mapHeight/2);
+		this._homePosition = new Position (this.mapWidth / 2, this.mapHeight / 2);
 		
 		this.setPositionForTile (this.door, this._doorPosition);
 		this.setPositionForTile (this.home, this._homePosition);
@@ -89,23 +194,30 @@ public class MapScript : MonoBehaviour
 		this.map.renderer.material.mainTextureScale = new Vector2 (this.mapWidth, this.mapHeight);
 		
 		
-		this._selectedPosition = new Position(-1, -1);
+		this._selectedPosition = new Position (-1, -1);
 		_selectionVisible = true;
+		this.setSelectionPosition (new Position (0, 0));
 		this.setSelectionVisible (false);
 		
-		PathScript.sharedInstance().recalculatePath();
+		PathScript.sharedInstance ().recalculatePath ();
+		
+		_isRendering2d = false;
+		this.set2dRendering ();
 	}
 	
 	// Update is called once per frame
 	void Update ()
 	{
-		this.updateSelection ();
+		if (!PauseScript.sharedInstance().isPaused())
+		{
+			this.updateSelection ();
+		}
 	}
 	
 	void updateSelection ()
 	{
 		Vector3 screenPos = Input.mousePosition;
-		Ray ray = Camera.mainCamera.ScreenPointToRay (screenPos);
+		Ray ray = this.currentCamera ().ScreenPointToRay (screenPos);
 		float distance;
 		if (this._floorPlane.Raycast (ray, out distance)) {
 			Vector3 point = ray.GetPoint (distance);
@@ -140,7 +252,7 @@ public class MapScript : MonoBehaviour
 			this.selection.transform.position = selPos;
 			
 			if (!show) {
-				this.setSelectionPosition (new Position(-1, -1));
+				this.setSelectionPosition (new Position (-1, -1));
 			}
 		}
 	}
@@ -165,7 +277,7 @@ public class MapScript : MonoBehaviour
 		}
 	}
 	
-	public Position getSelectionPosition()
+	public Position getSelectionPosition ()
 	{
 		return this._selectedPosition;
 	}
@@ -178,17 +290,27 @@ public class MapScript : MonoBehaviour
 		int column = Mathf.FloorToInt (diffX / this._tileSize.x);
 		int row = Mathf.FloorToInt (diffY / this._tileSize.y);
 		
-		pos = new Position(row, column);
+		pos = new Position (row, column);
 	}
 	
-	public Position getDoorPosition()
+	public Position getDoorPosition ()
 	{
 		return this._doorPosition;
 	}
 	
-	public Position getHomePosition()
+	public Position getHomePosition ()
 	{
 		return this._homePosition;
+	}
+	
+	public int getNRows ()
+	{
+		return (this.mapHeight - 1);
+	}
+	
+	public int getNColumns ()
+	{
+		return (this.mapWidth - 1);
 	}
 	
 	public Vector3 getPointForMapCoordinates (Position position)
@@ -207,23 +329,70 @@ public class MapScript : MonoBehaviour
 		tile.transform.position = pos;
 	}
 	
-	
-	public bool canAddEnemyAtPosition(Position pos)
+	public bool tryToBlockPosition (Position pos)
 	{
-		Defense defense;
-		bool anyDefense = CreateDefensesScript.sharedInstance().anyDefenseAtPosition(pos, out defense);
-		if (anyDefense)
-		{
+		DefenseScript defense;
+		bool anyDefense = CreateDefensesScript.sharedInstance ().anyDefenseAtPosition (pos, out defense);
+		if (anyDefense) {
 			return false;
-		} else
-		{
-			bool pathCanBlockPosition = PathScript.sharedInstance().blockPosition(pos);
+		} else {
+			bool pathCanBlockPosition = PathScript.sharedInstance ().blockPosition (pos);
 			return pathCanBlockPosition;
 		}
 	}
 	
-	public Vector2 getTileSize()
+	public Vector2 getTileSize ()
 	{
 		return this._tileSize;
+	}
+	
+	public Vector3 hiddenPosition ()
+	{
+		return new Vector3 (0.0f, 100.0f, 0.0f);
+	}
+	
+	public Camera currentCamera ()
+	{
+		return (this._isRendering2d ? this.camera2d : this.camera3d);
+	}
+	
+	public bool isUsing2dRendering ()
+	{
+		return this._isRendering2d;
+	}
+	
+	public bool isUsing3dRendering ()
+	{
+		return (!this._isRendering2d);
+	}
+	
+	public void set2dRendering ()
+	{
+		if (!this._isRendering2d) {
+			this._isRendering2d = true;
+			
+			this.camera2d.enabled = true;
+			AudioListener camera2dAudioListener = this.camera2d.gameObject.GetComponent<AudioListener> ();
+			camera2dAudioListener.enabled = true;
+				
+			this.camera3d.enabled = false;
+			AudioListener camera3dAudioListener = this.camera3d.gameObject.GetComponent<AudioListener> ();
+			camera3dAudioListener.enabled = false;
+		}
+	}
+	
+	public void set3dRendering ()
+	{
+		if (this._isRendering2d) {
+			this._isRendering2d = false;
+			
+			this.camera2d.enabled = false;
+			AudioListener camera2dAudioListener = this.camera2d.gameObject.GetComponent<AudioListener> ();
+			camera2dAudioListener.enabled = false;
+				
+			this.camera3d.enabled = true;
+			AudioListener camera3dAudioListener = this.camera3d.gameObject.GetComponent<AudioListener> ();
+			camera3dAudioListener.enabled = true;
+		}
 	}
 }

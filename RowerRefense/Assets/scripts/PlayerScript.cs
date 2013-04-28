@@ -3,6 +3,7 @@ using System.Collections;
 
 public class PlayerScript : MonoBehaviour
 {
+	public int money = 100;
 	private float _life;
 	private int _score;
 	private int _nKilledEnemies;
@@ -58,9 +59,10 @@ public class PlayerScript : MonoBehaviour
 	
 	
 	
-	void defenseWasAdded(Defense defense)
+	void defenseWasAdded(DefenseScript defense)
 	{
 		this._nDefenses++;
+		this.money -= defense.price;
 	}
 	
 	
@@ -70,11 +72,29 @@ public class PlayerScript : MonoBehaviour
 		
 		EnemyScript enemyScript = enemy.GetComponent<EnemyScript>();
 		this._score += enemyScript.score;
+		
+		this.money += enemyScript.score;
 	}
 	
 	public void enemyReachedHome(GameObject enemy)
 	{
 		EnemyScript enemyScript = enemy.GetComponent<EnemyScript>();
 		this._life -= enemyScript.damage;
+		
+		if (this._life <= 0)
+		{
+			Application.LoadLevel("EndGame");
+		}
+	}
+	
+	
+	public int getMoney()
+	{
+		return this.money;
+	}
+	
+	public void spendMoney(int ammount)
+	{
+		this.money -= ammount;
 	}
 }

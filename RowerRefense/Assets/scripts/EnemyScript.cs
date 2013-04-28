@@ -8,6 +8,8 @@ public class EnemyScript : MonoBehaviour
 	public float damage = 10.0f;
 	public float velocity = 1.0f;
 	public int score = 10;
+	public Transform explosionPrefab;
+	public AudioClip explosionAudio;
 	private float _initialLife;
 	private GameObject _lifeBar;
 	private Vector3 _nextPosition;
@@ -50,6 +52,12 @@ public class EnemyScript : MonoBehaviour
 	
 	private void explode (bool killed)
 	{
+		if (this.explosionPrefab != null) {
+			Instantiate (this.explosionPrefab, this.transform.position, Quaternion.identity);
+			if (this.explosionAudio != null) {
+				AudioSource.PlayClipAtPoint(this.explosionAudio, this.transform.position);
+			}
+		}
 		SpawnEnemiesScript.sharedInstance ().enemyExplode (this.gameObject, killed);
 		Destroy (this.gameObject);
 	}
@@ -65,7 +73,7 @@ public class EnemyScript : MonoBehaviour
 			this._nextPosition.y = this.transform.position.y;
 			this._movingVect = (this._nextPosition - this.transform.position).normalized;
 			
-			this.transform.rotation = Quaternion.LookRotation(this._movingVect);
+			this.transform.rotation = Quaternion.LookRotation (this._movingVect);
 			
 			return true;
 		}
@@ -80,7 +88,7 @@ public class EnemyScript : MonoBehaviour
 			float initialWidth = 3.0f;
 			
 			Vector3 lifeScale = this._lifeBar.transform.localScale;
-			lifeScale.x = initialWidth*(this.life / this._initialLife);
+			lifeScale.x = initialWidth * (this.life / this._initialLife);
 			this._lifeBar.transform.localScale = lifeScale;
 			
 			Vector3 lifeBarPos = this._lifeBar.transform.localPosition;
@@ -88,5 +96,10 @@ public class EnemyScript : MonoBehaviour
 			this._lifeBar.transform.localPosition = lifeBarPos;
 		}
 		
+	}
+	
+	void OnParticleCollision (GameObject other)
+	{
+		Debug.Log ("Particle collision in enemy");
 	}
 }
