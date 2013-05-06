@@ -3,7 +3,6 @@ using System.Collections;
 
 public class EnemyScript : MonoBehaviour
 {
-	
 	public float life = 100.0f;
 	public float damage = 10.0f;
 	public float velocity = 1.0f;
@@ -12,17 +11,21 @@ public class EnemyScript : MonoBehaviour
 	public AudioClip explosionAudio;
 	private float _initialLife;
 	private GameObject _lifeBar;
+	
+	private ArrayList _pathPositions;
+	private int _pathPositionIndex;
 	private Vector3 _nextPosition;
 	private Vector3 _movingVect;
-	private int _pathPointIndex;
 	
 	// Use this for initialization
 	void Start ()
 	{
+		this._pathPositions = (ArrayList)PathScript.sharedInstance ().getPathCheckpointsPositions().Clone();
+		PathScript.sharedInstance().addSegmentsFromPositions(this._pathPositions);
 		
-		ArrayList pathPoints = PathScript.sharedInstance ().getPathCheckpoints ();
-		this.transform.position = (Vector3)pathPoints [0];
-		this._pathPointIndex = 0;
+		Position firstPosition = (Position)this._pathPositions[0];
+		this._pathPositionIndex = 0;
+		this.transform.position = MapScript.sharedInstance().getPointForMapCoordinates(firstPosition);
 		this.getNextPosition ();
 		
 		foreach (Transform child in this.transform) {
@@ -39,7 +42,7 @@ public class EnemyScript : MonoBehaviour
 	void Update ()
 	{
 		Vector3 movingVect = (this._nextPosition - this.transform.position);
-		if (movingVect.sqrMagnitude > 0.001f) {
+		if (movingVect.sqrMagnitude > 0.005f) {
 			Vector3 pos = this.transform.position;
 			pos += (this._movingVect * this.velocity * Time.deltaTime);
 			this.transform.position = pos;
@@ -64,12 +67,12 @@ public class EnemyScript : MonoBehaviour
 	
 	private bool getNextPosition ()
 	{
-		ArrayList pathPoints = PathScript.sharedInstance ().getPathCheckpoints ();
-		this._pathPointIndex++;
-		if (this._pathPointIndex >= pathPoints.Count) {
+		this._pathPositionIndex++;
+		if (this._pathPositionIndex >= this._pathPositions.Count) {
 			return false;
 		} else {
-			this._nextPosition = (Vector3)pathPoints [this._pathPointIndex];
+			Position nextPos = (Position)this._pathPositions [this._pathPositionIndex];
+			this._nextPosition = MapScript.sharedInstance().getPointForMapCoordinates(nextPos);
 			this._nextPosition.y = this.transform.position.y;
 			this._movingVect = (this._nextPosition - this.transform.position).normalized;
 			
@@ -98,8 +101,39 @@ public class EnemyScript : MonoBehaviour
 		
 	}
 	
-	void OnParticleCollision (GameObject other)
+	public void blockPathPosition(Position pos)
 	{
-		Debug.Log ("Particle collision in enemy");
+		bool positionIsInPath = false;
+		int i = this._pathPositionIndex;
+		while (!positionIsInPath && i<this._pathPositions.Count)
+		{
+			Position p = (Position)this._pathPositions[i];
+			positionIsInPath = (pos.isEqualTo(p));
+			i++;
+		}
+		
+		if (positionIsInPath)
+		{
+			Position startPos = (Position)this._pathPositions[this._pathPositionIndex-1];
+			Position endPos = MapScript.sharedInstance().getHomePosition();
+			ArrayList positions;
+			if (PathScript.sharedInstance().existsPathFromPosToPos(startPos, endPos, out positions))
+			{
+				PathScript.sharedInstance().addSegmentsFromPositions(positions);
+				PathScript.sharedInstance().removeSegmentsFromPositions(this._pathPositions);
+				this._pathPositions = positions;
+				this._pathPositionIndex = 0;
+				this.getNextPosition();
+			}
+		}
+	}
+	
+	
+	void OnDestroy()
+	{
+		if ((this._pathPositions != null) && (PathScript.sharedInstance() != null))
+		{
+			PathScript.sharedInstance().removeSegmentsFromPositions(this._pathPositions);
+		}
 	}
 }

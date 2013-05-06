@@ -3,13 +3,15 @@ using System.Collections;
 
 public class PlayerScript : MonoBehaviour
 {
-	public int money = 100;
+	public int startMoney = 100;
+	public int startLife = 100;
+	private int _money;
 	private float _life;
 	private int _score;
 	private int _nKilledEnemies;
 	private int _nDefenses;
 	private static PlayerScript singleton;
-
+	
 	public static PlayerScript sharedInstance ()
 	{
 		return singleton;
@@ -28,7 +30,8 @@ public class PlayerScript : MonoBehaviour
 	// Use this for initialization
 	void Start ()
 	{
-		this._life = 100.0f;
+		this._life = this.startLife;
+		this._money = this.startMoney;
 	}
 	
 	// Update is called once per frame
@@ -62,7 +65,13 @@ public class PlayerScript : MonoBehaviour
 	void defenseWasAdded(DefenseScript defense)
 	{
 		this._nDefenses++;
-		this.money -= defense.price;
+		this._money -= defense.price;
+	}
+	
+	void defenseWasRemoved(DefenseScript defense)
+	{
+		this._nDefenses--;
+		this._money += defense.price;
 	}
 	
 	
@@ -73,7 +82,7 @@ public class PlayerScript : MonoBehaviour
 		EnemyScript enemyScript = enemy.GetComponent<EnemyScript>();
 		this._score += enemyScript.score;
 		
-		this.money += enemyScript.score;
+		this._money += enemyScript.score;
 	}
 	
 	public void enemyReachedHome(GameObject enemy)
@@ -83,6 +92,7 @@ public class PlayerScript : MonoBehaviour
 		
 		if (this._life <= 0)
 		{
+			StaticData.score = this._score;
 			Application.LoadLevel("EndGame");
 		}
 	}
@@ -90,11 +100,11 @@ public class PlayerScript : MonoBehaviour
 	
 	public int getMoney()
 	{
-		return this.money;
+		return this._money;
 	}
 	
 	public void spendMoney(int ammount)
 	{
-		this.money -= ammount;
+		this._money -= ammount;
 	}
 }

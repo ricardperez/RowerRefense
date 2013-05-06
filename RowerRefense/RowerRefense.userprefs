@@ -1,21 +1,19 @@
 ﻿<Properties>
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="../../Domino/Assets/Momino/scripts/LevelPropertiesScript.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/scripts/SpawnEnemiesScript.cs">
     <Files>
-      <File FileName="Assets/scripts/MapScript.cs" Line="362" Column="3" />
-      <File FileName="Assets/scripts/PathScript.cs" Line="126" Column="38" />
-      <File FileName="Assets/scripts/EnemyScript.cs" Line="57" Column="38" />
-      <File FileName="Assets/scripts/SpawnEnemiesScript.cs" Line="84" Column="34" />
-      <File FileName="Assets/scripts/CreateDefensesScript.cs" Line="119" Column="36" />
-      <File FileName="Assets/scripts/DefenseScript.cs" Line="118" Column="30" />
-      <File FileName="Assets/scripts/HUDScript.cs" Line="16" Column="4" />
-      <File FileName="Assets/scripts/PlayerScript.cs" Line="11" Column="40" />
-      <File FileName="Assets/scripts/DebugScript.cs" Line="1" Column="1" />
-      <File FileName="Assets/scripts/EndGameScript.cs" Line="20" Column="14" />
-      <File FileName="Assets/scripts/MainMenuScript.cs" Line="18" Column="42" />
-      <File FileName="Assets/scripts/DestroyParticleSystemScript.cs" Line="5" Column="2" />
-      <File FileName="Assets/scripts/ShootBulletScript.cs" Line="16" Column="2" />
-      <File FileName="../../Domino/Assets/Momino/scripts/LevelPropertiesScript.cs" Line="563" Column="3" />
+      <File FileName="Assets/scripts/MainMenuScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/HUDScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/CreateDefensesScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/MapScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/PathScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/EnemyScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/SpawnEnemiesScript.cs" Line="77" Column="18" />
+      <File FileName="Assets/scripts/DefenseScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/ClassesAndStructs/Structs.cs" Line="146" Column="2" />
+      <File FileName="Assets/ClassesAndStructs/Classes.cs" Line="92" Column="9" />
+      <File FileName="Assets/scripts/PlayerScript.cs" Line="85" Column="9" />
+      <File FileName="Assets/scripts/EndGameScript.cs" Line="1" Column="1" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>

@@ -19,6 +19,7 @@ public class CreateDefensesScript : MonoBehaviour
 	private ArrayList _allDefenses;
 	private GameObject _defenseInstanceToAdd;
 	private static CreateDefensesScript singleton;
+	private bool _deleting;
 
 	public static CreateDefensesScript sharedInstance ()
 	{
@@ -45,25 +46,38 @@ public class CreateDefensesScript : MonoBehaviour
 	void Update ()
 	{
 		if (Input.GetMouseButtonDown (0)) {
-			if (this._defenseInstanceToAdd != null) {
+			if (this._defenseInstanceToAdd != null || this._deleting) {
 				
 				MapScript mapScript = MapScript.sharedInstance ();
 				if (mapScript.selectionIsVisible ()) {
 					
-					DefenseScript def = this._defenseInstanceToAdd.GetComponent<DefenseScript> ();
-					if (PlayerScript.sharedInstance ().getMoney () >= def.price) {
-						Position selectionPos = mapScript.getSelectionPosition ();
-						if (mapScript.tryToBlockPosition (selectionPos)) {
-							Vector3 position = mapScript.getPointForMapCoordinates (selectionPos);
-							this._defenseInstanceToAdd.transform.position = position;
-							DefenseScript defenseScript = this._defenseInstanceToAdd.GetComponent<DefenseScript> ();
-							defenseScript.setPosition (selectionPos);
-							defenseScript.setUsable (true);
-							this._allDefenses.Add (defenseScript);
-							BroadcastMessage ("defenseWasAdded", defenseScript);
+					if (this._defenseInstanceToAdd != null) {
+						DefenseScript def = this._defenseInstanceToAdd.GetComponent<DefenseScript> ();
+						if (PlayerScript.sharedInstance ().getMoney () >= def.price) {
+							Position selectionPos = mapScript.getSelectionPosition ();
+							if (mapScript.tryToBlockPosition (selectionPos)) {
+								Vector3 position = mapScript.getPointForMapCoordinates (selectionPos);
+								this._defenseInstanceToAdd.transform.position = position;
+								DefenseScript defenseScript = this._defenseInstanceToAdd.GetComponent<DefenseScript> ();
+								defenseScript.setPosition (selectionPos);
+								defenseScript.setUsable (true);
+								defenseScript.showRadius (false);
+								this._allDefenses.Add (defenseScript);
+								BroadcastMessage ("defenseWasAdded", defenseScript);
 							
-							this._defenseInstanceToAdd = (GameObject)Instantiate (this._defenseInstanceToAdd, MapScript.sharedInstance ().hiddenPosition (), Quaternion.identity);
+								this._defenseInstanceToAdd = (GameObject)Instantiate (this._defenseInstanceToAdd, MapScript.sharedInstance ().hiddenPosition (), Quaternion.identity);
+							}
 						}
+					} else {
+						DefenseScript def;
+						if (this.anyDefenseAtPosition(mapScript.getSelectionPosition(), out def))
+						{
+							BroadcastMessage ("defenseWasRemoved", def);
+							this._allDefenses.Remove(def);
+							GameObject defGO = def.gameObject;
+							Destroy (defGO);
+						}
+						
 					}
 				}
 			}
@@ -71,12 +85,12 @@ public class CreateDefensesScript : MonoBehaviour
 		
 		if (this._defenseInstanceToAdd != null) {
 			MapScript mapScript = MapScript.sharedInstance ();
+			DefenseScript ds = this._defenseInstanceToAdd.GetComponent<DefenseScript> ();
 			if (mapScript.selectionIsVisible ()) {
 				Position selectionPos = mapScript.getSelectionPosition ();
-				Vector3 position = mapScript.getPointForMapCoordinates (selectionPos);
-				this._defenseInstanceToAdd.transform.position = position;
+				ds.setPosition (selectionPos);
 			} else {
-				this._defenseInstanceToAdd.transform.position = MapScript.sharedInstance ().hiddenPosition ();
+				ds.setPosition (new Position (-1, -1));
 			}
 		}
 	}
@@ -131,15 +145,28 @@ public class CreateDefensesScript : MonoBehaviour
 			float nextY = startY;
 			for (int i=0; i<nButtons; i++) {
 				GameObject defensePrefab = this.defensesPrefabs [i];
-				if (GUI.Button (new Rect (startX, nextY, buttonsWidth, buttonsHeight), defensePrefab.name)) {
+				DefenseScript defense = defensePrefab.GetComponent<DefenseScript> ();
+				string buttonTitle = (defensePrefab.name + " (" + defense.price + ")");
+				if (GUI.Button (new Rect (startX, nextY, buttonsWidth, buttonsHeight), buttonTitle)) {
 					if (this._defenseInstanceToAdd != null) {
 						Destroy (this._defenseInstanceToAdd);
 						this._defenseInstanceToAdd = null;
 					}
+					this._deleting = false;
 					this._defenseInstanceToAdd = (GameObject)Instantiate (defensePrefab, MapScript.sharedInstance ().hiddenPosition (), Quaternion.identity);
 				
 				}
 				nextY += (buttonsHeight + buttonsSep);
+			}
+			
+			
+			nextY += (buttonsHeight + buttonsSep);
+			if (GUI.Button (new Rect (startX, nextY, buttonsWidth, buttonsHeight), "Delete")) {
+				this._deleting = true;
+				if (this._defenseInstanceToAdd != null) {
+					Destroy (this._defenseInstanceToAdd);
+					this._defenseInstanceToAdd = null;
+				}
 			}
 		}
 	}

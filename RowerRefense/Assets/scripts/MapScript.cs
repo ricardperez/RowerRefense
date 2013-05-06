@@ -1,132 +1,6 @@
 using UnityEngine;
 using System.Collections;
 
-public enum Direction
-{
-	kRight = 0,
-	kLeft,
-	kUp,
-	kDown,
-	kQuiet,
-}
-
-public struct Position
-{
-	public int row;
-	public int column;
-	
-	public Position (int r, int c)
-	{
-		this.row = r;
-		this.column = c;
-	}
-	
-	override public string ToString ()
-	{
-		return ("(" + this.row + ", " + this.column + ")");
-	}
-	
-	public bool isEqualTo (Position pos)
-	{
-		return ((this.row == pos.row) && (this.column == pos.column));
-	}
-	
-	public Position move (Direction dir)
-	{
-		return this.move (dir, 1);
-	}
-	
-	public Position move (Direction dir, int steps)
-	{
-		int row = this.row;
-		int column = this.column;
-		switch (dir) {
-		case Direction.kRight:
-			column += steps;
-			break;
-		case Direction.kLeft:
-			column -= steps;
-			break;
-		case Direction.kUp:
-			row += steps;
-			break;
-		case Direction.kDown:
-			row -= steps;
-			break;
-		default:
-			break;
-		}
-		return new Position (row, column);
-	}
-	
-	public Direction directionTo (Position pos)
-	{
-		if (pos.column > this.column) {
-			return Direction.kRight;
-		} else if (pos.column < this.column) {
-			return Direction.kLeft;
-		} else if (pos.row > this.row) {
-			return Direction.kUp;
-		} else if (pos.row < this.row) {
-			return Direction.kDown;
-		} else {
-			return Direction.kQuiet;
-		}
-	}
-	
-	public static Direction reversedDirection (Direction dir)
-	{
-		Direction reversed = Direction.kQuiet;
-		switch (dir) {
-		case Direction.kLeft:
-			reversed = Direction.kRight;
-			break;
-		case Direction.kRight:
-			reversed = Direction.kLeft;
-			break;
-		case Direction.kUp:
-			reversed = Direction.kDown;
-			break;
-		case Direction.kDown:
-			reversed = Direction.kUp;
-			break;
-		}
-		return reversed;
-	}
-	
-	public bool isInRange (int maxRow, int maxCol)
-	{
-		return this.isInRange (0, 0, maxRow, maxCol);
-	}
-	
-	public bool isInRange (int minRow, int minCol, int maxRow, int maxCol)
-	{
-		return ((this.row >= minRow) && (this.column >= minCol) && (this.row <= maxRow) && (this.column <= maxCol));
-	}
-}
-
-public struct Size
-{
-	public int width;
-	public int height;
-	
-	public Size (int w, int h)
-	{
-		this.width = w;
-		this.height = h;
-	}
-	
-	override public string ToString ()
-	{
-		return ("(" + this.width + ", " + this.height + ")");
-	}
-	
-	public bool isEqualTo (Size s)
-	{
-		return ((this.width == s.width) && (this.height == s.height));
-	}
-}
-
 public class MapScript : MonoBehaviour
 {
 	public GameObject map;
@@ -137,6 +11,8 @@ public class MapScript : MonoBehaviour
 	public GameObject home;
 	public int mapWidth = 11;
 	public int mapHeight = 11;
+	public Material selectionMaterialGood;
+	public Material selectionMaterialBad;
 	private Vector2 _mapOrigin;
 	private Vector2 _tileSize;
 	private Plane _floorPlane;
@@ -146,6 +22,7 @@ public class MapScript : MonoBehaviour
 	private Position _homePosition;
 	private static MapScript singleton;
 	private bool _isRendering2d;
+	private bool _selectionIsAvailable;
 
 	public static MapScript sharedInstance ()
 	{
@@ -203,13 +80,14 @@ public class MapScript : MonoBehaviour
 		
 		_isRendering2d = false;
 		this.set2dRendering ();
+		
+		this._selectionIsAvailable = true;
 	}
 	
 	// Update is called once per frame
 	void Update ()
 	{
-		if (!PauseScript.sharedInstance().isPaused())
-		{
+		if (!PauseScript.sharedInstance ().isPaused ()) {
 			this.updateSelection ();
 		}
 	}
@@ -223,15 +101,38 @@ public class MapScript : MonoBehaviour
 			Vector3 point = ray.GetPoint (distance);
 			Position position;
 			this.getMapCoordinatesForPoint (point, out position);
-			if (position.row >= 0 && position.column >= 0 && position.row < this.mapHeight && position.column < this.mapWidth) {
-				this.setSelectionPosition (position);
-				this.setSelectionVisible (true);
-			} else {
-				this.setSelectionVisible (false);
+			if (!this._selectedPosition.isEqualTo (position)) {
+				if (this.positionsIsValid (position)) {
+					this.setSelectionPosition (position);
+					this.setSelectionVisible (true);
+					this.updateSelectionIsAvailable ();
+					
+				} else {
+					this.setSelectionVisible (false);
+				}
 			}
 			
 		} else {
 			this.setSelectionVisible (false);
+		}
+	}
+	
+	void updateSelectionIsAvailable ()
+	{
+		if (this._selectedPosition.isEqualTo (this._homePosition) || this._selectedPosition.isEqualTo (this._doorPosition)) {
+			this.setSelectionIsAvailable (false);
+		} else {
+			DefenseScript d;
+			if (CreateDefensesScript.sharedInstance ().anyDefenseAtPosition (this._selectedPosition, out d)) {
+				this.setSelectionIsAvailable (false);
+			} else {
+				ArrayList pathPositions;
+				if (PathScript.sharedInstance ().existsPathFromPosToPosIfBlockingPosition (this.getDoorPosition (), this.getHomePosition (), this._selectedPosition, out pathPositions)) {
+					this.setSelectionIsAvailable (true);
+				} else {
+					this.setSelectionIsAvailable (false);
+				}
+			}
 		}
 	}
 	
@@ -393,6 +294,24 @@ public class MapScript : MonoBehaviour
 			this.camera3d.enabled = true;
 			AudioListener camera3dAudioListener = this.camera3d.gameObject.GetComponent<AudioListener> ();
 			camera3dAudioListener.enabled = true;
+		}
+	}
+	
+	public bool positionsIsValid (Position pos)
+	{
+		return pos.isInRange (this.getNRows (), this.getNColumns ());
+	}
+	
+	public float floorY ()
+	{
+		return (this.map.transform.position.y + this.map.transform.localScale.y * 0.5f + 0.01f);
+	}
+	
+	private void setSelectionIsAvailable (bool available)
+	{
+		if (available != this._selectionIsAvailable) {
+			this._selectionIsAvailable = available;
+			this.selection.renderer.material = (available ? this.selectionMaterialGood : this.selectionMaterialBad);
 		}
 	}
 }

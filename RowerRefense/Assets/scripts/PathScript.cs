@@ -1,13 +1,15 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class PathScript : MonoBehaviour
 {
-	private ArrayList _lineObjects;
-	private ArrayList _checkpoints;
+//	private ArrayList _lineObjects;
+//	private ArrayList _checkpoints;
 	private ArrayList _checkpointsPositions;
 	private static PathScript singleton;
 	private ArrayList _blockedPositions;
+	private Dictionary<Segment, Pair<int, LineRendererObject>> _pathSegments;
 
 	public static PathScript sharedInstance ()
 	{
@@ -17,6 +19,7 @@ public class PathScript : MonoBehaviour
 	void Awake ()
 	{
 		singleton = this;
+		this._pathSegments = new Dictionary<Segment, Pair<int, LineRendererObject>> ();
 	}
 	
 	void OnDestroy ()
@@ -27,6 +30,7 @@ public class PathScript : MonoBehaviour
 	// Use this for initialization
 	void Start ()
 	{
+		
 	}
 	
 	// Update is called once per frame
@@ -37,8 +41,14 @@ public class PathScript : MonoBehaviour
 	
 	public void recalculatePath ()
 	{
-		if (this.shortestCurrentPath (out this._checkpointsPositions)) {
-			this.buildPathWithPositions (this._checkpointsPositions);
+		ArrayList nextPath;
+		if (this.shortestCurrentPath (out nextPath)) {
+			if (this._checkpointsPositions != null) {
+				this.removeSegmentsFromPositions (this._checkpointsPositions);
+			}
+			
+			this._checkpointsPositions = nextPath;
+			this.addSegmentsFromPositions (this._checkpointsPositions);
 		}
 	}
 	
@@ -50,96 +60,81 @@ public class PathScript : MonoBehaviour
 		return this.existsPathFromPosToPos (doorPos, homePos, out checkpointsPositions);
 	}
 	
-	private void buildPathWithPositions (ArrayList positions)
-	{
-		if (this._lineObjects != null) {
-			foreach (GameObject lineObject in this._lineObjects) {
-				Destroy (lineObject);
-			}
-		}
-		
-		this._checkpoints = new ArrayList (positions.Count);
-		foreach (Position pos in positions) {
-			this._checkpoints.Add (MapScript.sharedInstance ().getPointForMapCoordinates (pos));
-		}
-		
-		this._lineObjects = new ArrayList (this._checkpoints.Count - 1);
-		float width = 0.15f;
-		Vector3 offsetX = new Vector3 (width * 0.5f, 0.0f, 0.0f);
-		Vector3 offsetY = new Vector3 (0.0f, 0.0f, width * 0.5f);
-		Color color = new Color(1.0f, 1.0f, 1.0f, 0.35f);
-		for (int i=0; i<this._checkpoints.Count-1; i++) {
-			GameObject go = new GameObject ("path-line");
-			LineRenderer lr = go.AddComponent ("LineRenderer") as LineRenderer;
-			lr.material = new Material (Shader.Find ("Particles/Additive"));
-			lr.SetColors (color, color);
-			lr.SetWidth (width, width);
-			lr.SetVertexCount (2);
-			
-			Vector3 origin = (Vector3)this._checkpoints [i];
-			Vector3 dest = (Vector3)this._checkpoints [i + 1];
-			
-			if (Mathf.Abs (dest.x - origin.x) > Mathf.Abs (dest.z - origin.z)) {
-				if (dest.x > origin.x) {
-					origin -= offsetX;
-					dest += offsetX;
-				} else {
-					origin += offsetX;
-					dest -= offsetX;
-				}
-				
-			} else {
-				if (dest.z > origin.z) {
-					origin -= offsetY;
-					dest += offsetY;
-				} else {
-					origin += offsetY;
-					dest -= offsetY;
-				}
-				
-			}
-			
-			lr.SetPosition (0, origin);
-			lr.SetPosition (1, dest);
-			
-			this._lineObjects.Add (go);
-		}
-	}
-	
 	/**
 	 * Finds the shortest path using a version of the Dijkstra algorithm.
 	 * Horizontal directions will be taken before vertical.
 	 */
-	private bool existsPathFromPosToPos (Position start, Position end, out ArrayList positions)
+	public bool existsPathFromPosToPos (Position start, Position end, out ArrayList positions)
 	{
-		ArrayList allPossiblePaths = new ArrayList ();
+		bool exists = this.iExistsPathFromPosToPos (start, end, out positions);
+		return exists;
+	}
+	
+	public bool existsPathFromPosToPosIfBlockingPosition (Position start, Position end, Position blockPos, out ArrayList positions)
+	{
+		if (this._blockedPositions == null)
+		{
+			this._blockedPositions = new ArrayList(1);
+		}
+		int n = this._blockedPositions.Count;
+		this._blockedPositions.Add(blockPos);
+		bool exists = this.iExistsPathFromPosToPos (start, end, out positions);
+		this._blockedPositions.RemoveAt(n);
+		return exists;
+	}
+	
+	private bool iExistsPathFromPosToPos (Position source, Position target, out ArrayList path)
+	{
+		path = new ArrayList ();
 		
-		ArrayList internPositions = new ArrayList ();
-		ArrayList visitedPositions = new ArrayList ();
-		int shortestPathLength = int.MaxValue;
-		__nCalls = 0;
-		bool exists = this.rExistsPathFromPosToPos (start, end, ref internPositions, ref visitedPositions, ref allPossiblePaths, ref shortestPathLength);
-//		Debug.Log ("N calls: " + __nCalls);
+		Queue queue = new Queue ();
+		HashSet<Position> visited = new HashSet<Position> ();
+		Dictionary<Position, Position> parents = new Dictionary<Position, Position> ();
 		
-		positions = null;
-		if (exists) {
-//			Debug.Log ("Found " + allPossiblePaths.Count + " paths");
-			int minSteps = int.MaxValue;
-			ArrayList shortestPath = null;
-			foreach (ArrayList path in allPossiblePaths) {
-				if (path.Count < minSteps) {
-					minSteps = path.Count;
-					shortestPath = path;
-				}
-				if (shortestPath != null) {
-					positions = (ArrayList)shortestPath.Clone ();
-				} else {
-					positions = new ArrayList ();
+		bool pathFound = false;
+		queue.Enqueue (source);
+		while ((queue.Count > 0) && !pathFound) {
+			Position current = (Position)queue.Dequeue ();
+			pathFound = (current.isEqualTo (target));
+			if (!pathFound) {
+				visited.Add (current);
+				Position [] neighbors = {
+				current.move (Direction.kRight),
+				current.move (Direction.kUp),
+				current.move (Direction.kLeft),
+				current.move (Direction.kDown),
+			};
+				foreach (Position p in neighbors) {
+					__nCalls++;
+					if (MapScript.sharedInstance ().positionsIsValid (p)) {
+						if (!visited.Contains (p)) {
+							if (!this.positionIsBlocked (p)) {
+								queue.Enqueue (p);
+								parents.Remove (p);
+								parents.Add (p, current);
+							}
+						}
+					}
 				}
 			}
+			
 		}
 		
-		return exists;
+		if (pathFound) {
+			Stack pathStack = new Stack ();
+			Position current = target;
+			while (current.row >= 0) {
+				pathStack.Push (current);
+				current = (parents.ContainsKey (current) ? parents [current] : new Position (-1, -1));
+			}
+			
+			while (pathStack.Count > 0) {
+				path.Add (pathStack.Pop ());
+			}
+			
+		}
+		
+		return pathFound;
 	}
 	
 	private int __nCalls = 0;
@@ -240,9 +235,14 @@ public class PathScript : MonoBehaviour
 		return (blockedBySelf || anyDefense);
 	}
 	
-	public ArrayList getPathCheckpoints ()
+//	public ArrayList getPathCheckpoints ()
+//	{
+//		return this._checkpoints;
+//	}
+	
+	public ArrayList getPathCheckpointsPositions ()
 	{
-		return this._checkpoints;
+		return this._checkpointsPositions;
 	}
 	
 	/**
@@ -254,7 +254,7 @@ public class PathScript : MonoBehaviour
 	{
 		bool isInPath = false;
 		int i = 0;
-		while (!isInPath && i<(this._checkpoints.Count-1)) {
+		while (!isInPath && i<(this._checkpointsPositions.Count-1)) {
 			Position origin = (Position)this._checkpointsPositions [i];
 			Position dest = (Position)this._checkpointsPositions [i + 1];
 			if (origin.row == dest.row && origin.row == pos.row) {
@@ -268,10 +268,15 @@ public class PathScript : MonoBehaviour
 		if (isInPath) {
 			this._blockedPositions = new ArrayList (1);
 			this._blockedPositions.Add (pos);
-			ArrayList positions;
-			if (this.shortestCurrentPath (out positions)) {
-				this._checkpointsPositions = positions;
-				this.buildPathWithPositions (positions);
+			ArrayList nextPath;
+			if (this.shortestCurrentPath (out nextPath)) {
+				
+				if (this._checkpointsPositions != null) {
+					this.removeSegmentsFromPositions (this._checkpointsPositions);
+				}
+				this._checkpointsPositions = nextPath;
+				this.addSegmentsFromPositions (this._checkpointsPositions);
+//				this.buildPathWithPositions (positions);
 				this._blockedPositions = null;
 				return true;
 			} else {
@@ -281,5 +286,60 @@ public class PathScript : MonoBehaviour
 		} else {
 			return true;
 		}
+	}
+	
+	public void addSegment (Segment s)
+	{
+		if (this._pathSegments.ContainsKey (s)) {
+			Pair<int, LineRendererObject> pair = this._pathSegments [s];
+			pair.first += 1;
+		} else {
+			LineRendererObject lro = new LineRendererObject (s);
+			Pair<int, LineRendererObject> pair = new Pair<int, LineRendererObject> (1, lro);
+			this._pathSegments.Add (s, pair);
+		}
+	}
+	
+	public void addSegmentsFromPositions (ArrayList positions)
+	{
+		if (positions.Count >= 2) {
+			Position origin = (Position)positions [0];
+			Position dest;
+			for (int i=1; i<positions.Count; i++) {
+				dest = (Position)positions [i];
+				Segment s = new Segment (origin, dest);
+				this.addSegment (s);
+				origin = dest;
+			}
+		}
+		
+	}
+	
+	public void removeSegment (Segment s)
+	{
+		if (this._pathSegments.ContainsKey (s)) {
+			Pair<int, LineRendererObject> pair = this._pathSegments [s];
+			if (pair.first > 1) {
+				pair.first -= 1;
+			} else {
+				pair.second.destroy();
+				this._pathSegments.Remove (s);
+			}
+		}
+	}
+	
+	public void removeSegmentsFromPositions (ArrayList positions)
+	{
+		if (positions.Count >= 2) {
+			Position origin = (Position)positions [0];
+			Position dest;
+			for (int i=1; i<positions.Count; i++) {
+				dest = (Position)positions [i];
+				Segment s = new Segment (origin, dest);
+				this.removeSegment (s);
+				origin = dest;
+			}
+		}
+		
 	}
 }

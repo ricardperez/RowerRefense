@@ -8,20 +8,21 @@ public class DefenseScript : MonoBehaviour
 	public float hitRadius = 4.0f;
 	public int price = 20;
 	public Transform shootExplosionPrefab;
-	public GameObject _enemy;
-	public ArrayList _targetEnemies;
+	public AudioClip shootAudioClip;
+	private GameObject _enemy;
+	private ArrayList _targetEnemies;
 	private double _timeSinceLastShoot;
 	private Position _position;
 	private ParticleSystem _shootBulletsPS;
-	public bool _usable;
+	private bool _usable;
+	private bool _showingRadius;
 	
 	// Use this for initialization
 	void Start ()
 	{
 		_usable = false;
 		SphereCollider sphereCollider = (SphereCollider)this.collider;
-		Vector2 tileSize = MapScript.sharedInstance ().getTileSize ();
-		sphereCollider.radius = (2.5f * hitRadius * (tileSize.x > tileSize.y ? tileSize.x : tileSize.y));
+		sphereCollider.radius = (this.getRealHitRadius () * 2.5f);
 		
 		this._targetEnemies = new ArrayList ();
 		
@@ -41,6 +42,14 @@ public class DefenseScript : MonoBehaviour
 				}
 			}
 		}
+		
+		this._showingRadius = true;
+	}
+	
+	private float getRealHitRadius ()
+	{
+		Vector2 tileSize = MapScript.sharedInstance ().getTileSize ();
+		return (hitRadius * (tileSize.x > tileSize.y ? tileSize.x : tileSize.y));
 	}
 	
 	// Update is called once per frame
@@ -70,6 +79,9 @@ public class DefenseScript : MonoBehaviour
 			
 			if (this.audio != null) {
 				this.audio.Play ();
+			} else if (this.shootAudioClip != null)
+			{
+				AudioSource.PlayClipAtPoint(this.shootAudioClip, this.transform.position);
 			}
 		}
 	}
@@ -94,8 +106,7 @@ public class DefenseScript : MonoBehaviour
 	
 	void OnTriggerEnter (Collider other)
 	{
-		if (this.name == "foo")
-		{
+		if (this.name == "foo") {
 			Debug.Log ("Trigger enter " + other.tag);
 		}
 		if (other.tag == "Enemy") {
@@ -147,7 +158,20 @@ public class DefenseScript : MonoBehaviour
 	
 	public void setPosition (Position p)
 	{
-		this._position = p;
+		if (!this._position.isEqualTo (p)) {
+			bool positionIsValid = MapScript.sharedInstance ().positionsIsValid (p);
+			
+			this._position = p;
+			if (positionIsValid) {
+				this.gameObject.transform.position = MapScript.sharedInstance ().getPointForMapCoordinates (p);
+				if (this._showingRadius) {
+					this.showRadius (true);
+				}
+			} else {
+				this.gameObject.transform.position = MapScript.sharedInstance ().hiddenPosition ();
+				this.showRadius (false, true);
+			}
+		}
 	}
 	
 	public void setUsable (bool usable)
@@ -159,5 +183,59 @@ public class DefenseScript : MonoBehaviour
 			}
 		}
 		
+	}
+	
+	private void showRadius (bool show, bool forced)
+	{
+		if (!forced) {
+			this._showingRadius = show;
+		}
+		
+		if (show) {
+			float theta_scale = 0.1f;
+			int size = Mathf.CeilToInt((2.0f * Mathf.PI) / theta_scale) + 1;
+			
+			float r = this.getRealHitRadius ();
+			Color color = new Color(0.0f, 0.85f, 0.1f, 0.5f);
+			LineRenderer lineRenderer = this.GetComponent<LineRenderer> ();
+			if (lineRenderer == null) {
+				lineRenderer = this.gameObject.AddComponent ("LineRenderer") as LineRenderer;
+			}
+			lineRenderer.material = new Material (Shader.Find ("Particles/Additive"));
+			lineRenderer.SetColors (color, color);
+			lineRenderer.SetWidth (0.1F, 0.1F);
+			lineRenderer.SetVertexCount (size);
+				
+			float offsetX = this.gameObject.transform.position.x;
+			float offsetZ = this.gameObject.transform.position.z;
+				
+			float theta = 0.0f;
+			float yPos = MapScript.sharedInstance ().floorY ();
+			for (int i=0; i<size; i++) {
+				
+				float x = (r * Mathf.Cos (theta) + offsetX);
+				float z = (r * Mathf.Sin (theta) + offsetZ);
+
+				Vector3 pos = new Vector3 (x, yPos, z);
+				lineRenderer.SetPosition (i, pos);
+				theta += theta_scale;
+			}
+				
+		} else {
+			LineRenderer lineRenderer = this.GetComponent<LineRenderer> ();
+			if (lineRenderer != null) {
+				lineRenderer.SetVertexCount (0);
+			}
+		}
+	}
+		
+	public void showRadius (bool show)
+	{
+		this.showRadius (show, false);
+	}
+	
+	public bool isShowingRadius ()
+	{
+		return this._showingRadius;
 	}
 }

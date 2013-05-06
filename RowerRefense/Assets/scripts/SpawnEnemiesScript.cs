@@ -5,7 +5,8 @@ public class SpawnEnemiesScript : MonoBehaviour
 {
 	public GameObject enemyPrefab;
 	public int nEnemiesPerRound = 5;
-	public double secondsPerEnemy = 1.5;
+	public double startSecondsPerEnemy = 1.5;
+	private double _secondsPerEnemy;
 	public double timeBetweenRounds = 10.0;
 	private int _nEnemiesInCurrentRound;
 	private double _timeSinceLastEnemy;
@@ -15,6 +16,7 @@ public class SpawnEnemiesScript : MonoBehaviour
 	private int _nEnemies;
 	private int _nRounds;
 	private static SpawnEnemiesScript singleton;
+	private ArrayList _allEnemies;
 
 	public static SpawnEnemiesScript sharedInstance ()
 	{
@@ -34,21 +36,22 @@ public class SpawnEnemiesScript : MonoBehaviour
 	// Use this for initialization
 	void Start ()
 	{
+		this._allEnemies = new ArrayList();
 		this._timeToStartRound = this.timeBetweenRounds;
-		GameObject map = MapScript.sharedInstance ().map;
-		this._startPosition.y = (map.transform.position.y + map.transform.localScale.y * 0.5f);
 		this._nEnemiesInCurrentRound = 0;
 		this._nRounds = 0;
 		this._nEnemies = 0;
+		this._secondsPerEnemy = this.startSecondsPerEnemy;
 	}
 	
 	// Update is called once per frame
 	void Update ()
 	{
 		if (!this._startPositionGot) {
-			ArrayList checkpoints = PathScript.sharedInstance ().getPathCheckpoints ();
+			ArrayList checkpoints = PathScript.sharedInstance ().getPathCheckpointsPositions ();
 			if (checkpoints != null) {
-				this._startPosition = (Vector3)checkpoints [0];
+				Position firstPosition = (Position)checkpoints[0];
+				this._startPosition = MapScript.sharedInstance().getPointForMapCoordinates(firstPosition);
 				this._startPositionGot = true;
 			}
 		} else {
@@ -56,6 +59,7 @@ public class SpawnEnemiesScript : MonoBehaviour
 				this._timeToStartRound -= Time.deltaTime;
 				if (!this.isWaiting ()) {
 					this._nRounds++;
+					this._secondsPerEnemy = (this.startSecondsPerEnemy / (1 + this._nRounds / 5.0f));
 				}
 			} else {
 				bool addEnemy = false;
@@ -63,7 +67,7 @@ public class SpawnEnemiesScript : MonoBehaviour
 					addEnemy = true;
 				} else {
 					this._timeSinceLastEnemy += Time.deltaTime;
-					if (this._timeSinceLastEnemy >= this.secondsPerEnemy) {
+					if (this._timeSinceLastEnemy >= this._secondsPerEnemy) {
 						addEnemy = true;
 					}
 				}
@@ -82,6 +86,7 @@ public class SpawnEnemiesScript : MonoBehaviour
 	{
 		this._timeSinceLastEnemy = 0.0;
 		GameObject enemy = (GameObject)Instantiate (this.enemyPrefab, this._startPosition, Quaternion.identity);
+		this._allEnemies.Add(enemy);
 		EnemyScript enemyScript = enemy.GetComponent<EnemyScript>();
 		enemyScript.life *= (1 + this._nRounds / 5.0f);
 		enemyScript.score += this._nRounds;
@@ -98,6 +103,7 @@ public class SpawnEnemiesScript : MonoBehaviour
 	
 	public void enemyExplode (GameObject obj, bool killed)
 	{
+		this._allEnemies.Remove(obj);
 		if (killed) {
 			BroadcastMessage ("enemyWasDestroyed", obj);
 		} else {
@@ -126,4 +132,13 @@ public class SpawnEnemiesScript : MonoBehaviour
 		this._timeToStartRound = 0.0;
 	}
 	
+	public void defenseWasAdded(DefenseScript defense)
+	{
+		foreach (GameObject enemyGO in this._allEnemies)
+		{
+			EnemyScript enemy = enemyGO.GetComponent<EnemyScript>();
+			enemy.blockPathPosition(defense.getPosition());
+		}
+	}
+
 }
