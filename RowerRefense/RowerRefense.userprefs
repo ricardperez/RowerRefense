@@ -1,18 +1,18 @@
 ﻿<Properties>
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/scripts/SpawnEnemiesScript.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/scripts/DefenseScript.cs">
     <Files>
       <File FileName="Assets/scripts/MainMenuScript.cs" Line="1" Column="1" />
       <File FileName="Assets/scripts/HUDScript.cs" Line="1" Column="1" />
       <File FileName="Assets/scripts/CreateDefensesScript.cs" Line="1" Column="1" />
-      <File FileName="Assets/scripts/MapScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/MapScript.cs" Line="131" Column="42" />
       <File FileName="Assets/scripts/PathScript.cs" Line="1" Column="1" />
       <File FileName="Assets/scripts/EnemyScript.cs" Line="1" Column="1" />
-      <File FileName="Assets/scripts/SpawnEnemiesScript.cs" Line="77" Column="18" />
-      <File FileName="Assets/scripts/DefenseScript.cs" Line="1" Column="1" />
-      <File FileName="Assets/ClassesAndStructs/Structs.cs" Line="146" Column="2" />
-      <File FileName="Assets/ClassesAndStructs/Classes.cs" Line="92" Column="9" />
-      <File FileName="Assets/scripts/PlayerScript.cs" Line="85" Column="9" />
+      <File FileName="Assets/scripts/SpawnEnemiesScript.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/DefenseScript.cs" Line="202" Column="82" />
+      <File FileName="Assets/ClassesAndStructs/Structs.cs" Line="1" Column="1" />
+      <File FileName="Assets/ClassesAndStructs/Classes.cs" Line="1" Column="1" />
+      <File FileName="Assets/scripts/PlayerScript.cs" Line="1" Column="1" />
       <File FileName="Assets/scripts/EndGameScript.cs" Line="1" Column="1" />
     </Files>
   </MonoDevelop.Ide.Workbench>
